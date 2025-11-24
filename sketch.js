@@ -65,6 +65,22 @@ let volumeLevel = 0; // 当前音量级别，便于调试
 // 首次用户交互标记
 let userInteracted = false;
 
+// 串口通信相关变量（新增）
+let serial; // 串口对象
+let portName = '/dev/tty/usbmodem5B140361291'; // 替换为你的ESP32串口端口（Windows：COMx；Mac：/dev/tty.usbmodemxxx）
+let receivedScore = -1; // 存储从串口接收的评分
+let scoreCooldown = 0; // 评分处理冷却时间（避免重复触发）
+let receivedData = ""; // 用于存储接收到的完整数据
+const SCORE_COOLDOWN_DURATION = 1000; // 冷却时间1秒（防止重复处理同一评分）
+const SCORE_TO_MOOD_RATIO = 1; // 1分评分 = +1心情值（可按需调整）
+
+// 新增：聊天记录管理
+let chatHistory = []; // 存储聊天记录，每个元素是 {sender: 'user/ai', content: '消息内容'}
+const MAX_CHAT_LINES = 8; // 最大显示聊天记录行数
+const CHAT_BOX_WIDTH = 350; // 聊天框宽度
+const CHAT_BOX_HEIGHT = 200; // 聊天框高度
+const CHAT_FONT_SIZE = 14; // 聊天文字大小
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   
@@ -93,6 +109,16 @@ function setup() {
   // 为触摸设备添加额外的交互监听
   document.addEventListener('touchstart', handleFirstInteraction);
   document.addEventListener('mousedown', handleFirstInteraction);
+
+  // 串口初始化（新增）
+  serial = new p5.SerialPort();
+  serial.list(); // 列出所有串口（在控制台查看可用端口）
+  serial.open(portName); // 打开串口
+  // 注册串口事件监听
+  serial.on('connected', onSerialConnected);
+  serial.on('data', gotSerialData);
+  serial.on('error', onSerialError);
+  serial.on('close', onSerialClosed);
 }
 
 function handleFirstInteraction() {
@@ -121,6 +147,86 @@ let tempMessageTimer = 0;
 function showTemporaryMessage(msg, duration = 1500) {
   tempMessage = msg;
   tempMessageTimer = millis();
+}
+
+// 串口连接成功（新增）
+function onSerialConnected() {
+  console.log('✅ 串口连接成功');
+  showTemporaryMessage("📶 串口已连接，等待评分数据...", 3000);
+}
+
+// 现有 gotSerialData 函数修改
+function gotSerialData() {
+  let data = serial.readLine(); // 读取一行数据
+  if (!data) return; // 无数据则返回
+  
+  console.log('📥 收到串口数据：', data);
+  
+  // 1. 处理评分数据（原有逻辑）
+  if (data.startsWith('SCORE:')) {
+    const score = parseInt(data.substring(6));
+    if (!isNaN(score) && score >= 0 && score <= 5 && millis() - scoreCooldown > SCORE_COOLDOWN_DURATION) {
+      receivedScore = score;
+      scoreCooldown = millis();
+      handleScoreMoodIncrease(score);
+    }
+  }
+  
+  // 新增：2. 处理 AI 回复数据（假设 ESP32 发送格式为 "REPLY:xxx"）
+  else if (data.startsWith('REPLY:')) {
+    const reply = data.substring(6).trim(); // 提取回复内容
+    // 添加 AI 回复到聊天记录
+    chatHistory.push({ sender: 'ai', content: reply });
+    // 限制聊天记录最大行数
+    if (chatHistory.length > MAX_CHAT_LINES) {
+      chatHistory.shift();
+    }
+    // 显示临时消息提示
+    showTemporaryMessage(`💬 小人回复：${reply}`, 3000);
+  }
+}
+
+// 串口错误（新增）
+function onSerialError(error) {
+  console.error('❌ 串口错误：', error);
+  showTemporaryMessage(`📶 串口错误：${error}`, 3000);
+}
+
+// 串口关闭（新增）
+function onSerialClosed() {
+  console.log('🔌 串口已关闭');
+  showTemporaryMessage("📶 串口已关闭", 3000);
+}
+
+// 处理评分对应的心情值增加（新增）
+function handleScoreMoodIncrease(score) {
+  const addValue = score * SCORE_TO_MOOD_RATIO; // 评分×比例=增加的心情值
+  if (addValue <= 0) return;
+  
+  // 增加心情值（复用现有逻辑）
+  moodValue = min(moodValue + addValue, moodMax);
+  moodEffectTimer = millis();
+  
+  // 显示评分反馈
+  showTemporaryMessage(`⭐ 收到安慰评分：${score}/5，心情值+${addValue}`, 3000);
+  console.log(`⭐ 评分增加心情值：${addValue}，当前：${moodValue}/${moodMax}`);
+  
+  // 添加飘字特效（复用现有特效逻辑）
+  floatTextEffects.push({
+    x: mainCharacter.x + 36, 
+    y: mainCharacter.y, 
+    alpha: 255, 
+    value: `+${addValue}`,
+    horizontalOffset: 0,
+    horizontalPhase: random(TWO_PI),
+    horizontalAmplitude: random(3, 7),
+    horizontalFrequency: 0.03 + random(0.02)
+  });
+  
+  // 触发小人抹眼泪动画（心情值低时）
+  if (moodValue < 80) {
+    mainCharacter.wipeTears();
+  }
 }
 
 function draw() {
@@ -953,4 +1059,22 @@ function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   leftWristHistory = [];
   rightWristHistory = [];
+}
+
+// 现有 sendMessage 函数修改
+function sendMessage() {
+  let input = document.getElementById("messageInput");
+  let message = input.value.trim();
+  if (message) {
+    // 新增：添加用户消息到聊天记录
+    chatHistory.push({ sender: 'user', content: message });
+    // 限制聊天记录最大行数
+    if (chatHistory.length > MAX_CHAT_LINES) {
+      chatHistory.shift(); // 删除最旧的一条
+    }
+    
+    serial.write(message + "\n"); // 发送消息给 ESP32，必须加换行符
+    console.log("已发送:", message);
+    input.value = ""; // 清空输入框
+  }
 }

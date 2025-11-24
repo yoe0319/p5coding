@@ -8,12 +8,22 @@
     <!-- 3. 引入p5.js及扩展（保持你的版本） -->
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/p5.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/addons/p5.sound.min.js"></script>
-    
+    <!-- <script src="https://cdn.jsdelivr.net/npm/p5-serial@0.0.2/lib/p5.serialport.js"></script> -->
+    <script language="javascript" type="text/javascript" src="https://cdn.jsdelivr.net/npm/p5.serialserver@0.0.28/lib/p5.serialport.js"></script>
+    <!-- <input type="text" id="messageInput" placeholder="输入要发送的消息...">
+    <button onclick="sendMessage()">发送</button> -->
     <link rel="stylesheet" type="text/css" href="style.css">
     <meta charset="utf-8" />
   </head>
   <body>
     <main></main>
+
+    <!-- 新增：聊天输入区域 -->
+  <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 1000;">
+    <input type="text" id="messageInput" placeholder="输入消息..." style="padding: 10px; font-size: 16px; width: 300px;">
+    <button onclick="sendMessage()" style="padding: 10px 20px; font-size: 16px;">发送</button>
+  </div>
+  
     <script src="sketch.js"></script>
   </body>
 </html>
