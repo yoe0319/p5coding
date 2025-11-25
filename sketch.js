@@ -83,8 +83,21 @@ const CHAT_BOX_WIDTH = 350; // 聊天框宽度
 const CHAT_BOX_HEIGHT = 200; // 聊天框高度
 const CHAT_FONT_SIZE = 14; // 聊天文字大小
 
+let bgImg; // 存储图片
+function preload() {
+  // 替换为你的图片路径
+  bgImg=loadImage('C:/Users/lxq/Desktop/微信图片_20251125095717_274_9.jpg');
+}
+
 function setup() {
-  createCanvas(windowWidth, windowHeight);
+  createCanvas(bgImg.width,bgImg.height);
+  image(bgImg, 0, 0, width, height);
+  // 混合模式：叠加
+  blendMode(OVERLAY);
+  fill(0, 100, 200, 120);
+  rect(50, 50, 300, 300);
+  // 重置混合模式，避免影响后续绘制
+  blendMode(BLEND);
   
   // 检查是否为安全上下文
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
