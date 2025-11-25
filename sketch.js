@@ -69,7 +69,7 @@ let userInteracted = false;
 
 // 串口通信相关变量（新增）
 let serial; // 串口对象
-let portName = '/dev/cu.usbmodem5B140361291'; // 替换为你的ESP32串口端口（Windows：COMx；Mac：/dev/tty.usbmodemxxx）
+let portName = '/dev/tty.usbmodem5B140361291'; // 替换为你的ESP32串口端口（Windows：COMx；Mac：/dev/tty.usbmodemxxx）
 let receivedScore = -1; // 存储从串口接收的评分
 let scoreCooldown = 0; // 评分处理冷却时间（避免重复触发）
 let receivedData = ""; // 用于存储接收到的完整数据
@@ -121,6 +121,9 @@ function setup() {
   serial.on('data', gotSerialData);
   serial.on('error', onSerialError);
   serial.on('close', onSerialClosed);
+
+
+  
 }
 
 function handleFirstInteraction() {
@@ -159,7 +162,10 @@ function onSerialConnected() {
 
 // 现有 gotSerialData 函数修改
 function gotSerialData() {
-  let data = serial.readLine(); // 读取一行数据
+  //console.log("收到数据")
+  //let data = serial.read(); // 读取一行数据
+  let datao = serial.readStringUntil('\n');
+  let data = trim(datao)
   if (!data) return; // 无数据则返回
   
   console.log('📥 收到串口数据：', data);
