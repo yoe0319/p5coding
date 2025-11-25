@@ -84,21 +84,14 @@ const CHAT_BOX_HEIGHT = 200; // 聊天框高度
 const CHAT_FONT_SIZE = 14; // 聊天文字大小
 
 let bgImg; // 存储图片
+
 function preload() {
-  // 替换为你的图片路径
-  bgImg=loadImage('C:/Users/lxq/Desktop/微信图片_20251125095717_274_9.jpg');
+  bgImg=loadImage('asset/bg.jpg');
 }
 
 function setup() {
-  createCanvas(bgImg.width,bgImg.height);
-  image(bgImg, 0, 0, width, height);
-  // 混合模式：叠加
-  blendMode(OVERLAY);
-  fill(0, 100, 200, 120);
-  rect(50, 50, 300, 300);
-  // 重置混合模式，避免影响后续绘制
-  blendMode(BLEND);
-  
+  createCanvas(bgImg.width, bgImg.height); // 用图片尺寸做画布
+  //console.log("图片尺寸：", bgImg.width, bgImg.height); 
   // 检查是否为安全上下文
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
     showTemporaryMessage("⚠️ 麦克风需要HTTPS或localhost环境", 8000);
@@ -135,6 +128,7 @@ function setup() {
   serial.on('error', onSerialError);
   serial.on('close', onSerialClosed);
 }
+
 
 function handleFirstInteraction() {
   if (userInteracted) return;
@@ -246,12 +240,18 @@ function handleScoreMoodIncrease(score) {
 
 function draw() {
   background(180, 180, 190);
-  
+
+  image(bgImg, 850, 676, 600, 300); 
+  // 混合模式：叠加（图片加载后再执行）
+  blendMode(OVERLAY);
+  fill(0, 100, 200, 120);
+  rect(50, 50, 300, 300);
+  // 重置混合模式
+  blendMode(BLEND);
+
   // 显示状态信息（始终显示）
   displayMicStatus();
   displayTemporaryMessage();
-  
-  drawMuddyGround();
   
   // 仅当麦克风已激活时检测鼓掌
   if (micState === MIC_STATE.ACTIVE || micState === MIC_STATE.CALIBRATING) {
