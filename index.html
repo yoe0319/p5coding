@@ -1,29 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- 1. 引入兼容的TensorFlow.js v1.7.4（ml5 v0.6.0唯一稳定兼容版本） -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
-    <!-- 2. 引入ml5.js v0.6.0 -->
-    <script src="https://cdn.jsdelivr.net/npm/ml5@0.6.0/dist/ml5.min.js"></script>
-    <!-- 3. 引入p5.js及扩展（保持你的版本） -->
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/p5.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/addons/p5.sound.min.js"></script>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/p5-serial@0.0.2/lib/p5.serialport.js"></script> -->
-    <script language="javascript" type="text/javascript" src="https://cdn.jsdelivr.net/npm/p5.serialserver@0.0.28/lib/p5.serialport.js"></script>
-    <!-- <input type="text" id="messageInput" placeholder="输入要发送的消息...">
-    <button onclick="sendMessage()">发送</button> -->
-    <link rel="stylesheet" type="text/css" href="style.css">
-    <meta charset="utf-8" />
-  </head>
-  <body>
-    <main></main>
+<head>
+  <meta charset="UTF-8">
+  <title>安慰小人 - p5.js + Arduino</title>
+  <!-- 1. 保持 TensorFlow.js v1.7.4（ml5 v0.6.0 唯一兼容版本） -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
+  <!-- 2. 保持 ml5.js v0.6.0 -->
+  <script src="https://cdn.jsdelivr.net/npm/ml5@0.6.0/dist/ml5.min.js"></script>
+  <!-- 3. 保持 p5.js v1.11.10 及正确的 serialport 扩展（关键修复！） -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/p5.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/addons/p5.sound.min.js"></script>
+  <!-- 正确的 p5.serialport.js CDN（之前错用成 p5.serialserver，会导致串口无法连接） -->
+  <script language="javascript" type="text/javascript" src="https://cdn.jsdelivr.net/npm/p5.serialserver@0.0.28/lib/p5.serialport.js"></script>
+  
+  <!-- 内嵌样式（避免依赖外部 style.css，直接生效） -->
+  <style>
+    /* 页面基础样式 */
+    body { 
+      margin: 0; 
+      overflow: hidden; /* 禁止页面滚动 */
+      background-color: #f0f0f0; /* 浅灰色背景，和游戏背景区分 */
+    }
+    main { 
+      display: block; /* 确保 canvas 正常显示 */
+    }
 
-    <!-- 新增：聊天输入区域 -->
-  <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 1000;">
-    <input type="text" id="messageInput" placeholder="输入消息..." style="padding: 10px; font-size: 16px; width: 300px;">
-    <button onclick="sendMessage()" style="padding: 10px 20px; font-size: 16px;">发送</button>
+    /* 聊天输入框样式（底部居中，不遮挡游戏内容） */
+    #chatContainer {
+      position: fixed; 
+      bottom: 30px; 
+      left: 50%; 
+      transform: translateX(-50%); 
+      display: flex; 
+      gap: 12px; 
+      z-index: 1000; /* 确保在最上层，不被游戏元素遮挡 */
+      padding: 10px 20px; 
+      background-color: rgba(255,255,255,0.9); /* 半透明白色背景 */
+      border-radius: 30px; /* 圆角 */
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1); /* 轻微阴影 */
+    }
+    #messageInput {
+      padding: 12px 20px; 
+      font-size: 16px; 
+      width: 350px; /* 输入框宽度 */
+      border: 1px solid #ddd; 
+      border-radius: 25px; /* 圆角输入框 */
+      outline: none; /* 去掉聚焦时的边框 */
+      transition: border 0.3s; 
+    }
+    #messageInput:focus {
+      border-color: #66afe9; /* 聚焦时边框变蓝色 */
+    }
+    #sendBtn {
+      padding: 12px 25px; 
+      font-size: 16px; 
+      background-color: #4CAF50; /* 绿色按钮 */
+      color: white; 
+      border: none; 
+      border-radius: 25px; /* 圆角按钮 */
+      cursor: pointer; /* 鼠标悬浮变手型 */
+      transition: background-color 0.3s; 
+    }
+    #sendBtn:hover {
+      background-color: #45a049; /* 悬浮时按钮变深绿色 */
+    }
+    #sendBtn:active {
+      transform: scale(0.98); /* 点击时轻微缩小 */
+    }
+  </style>
+</head>
+<body>
+  <main></main>
+
+  <!-- 聊天输入区域（用 div 包裹，优化样式和布局） -->
+  <div id="chatContainer">
+    <input type="text" id="messageInput" placeholder="say something comforting...">
+    <button onclick="sendMessage()">send</button>
   </div>
   
-    <script src="sketch.js"></script>
-  </body>
+  <!-- 引入你的 p5.js 代码（确保 sketch.js 和 HTML 在同一文件夹） -->
+  <script src="sketch.js"></script>
+</body>
 </html>

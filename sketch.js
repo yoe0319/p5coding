@@ -32,7 +32,7 @@ const WAVE_HOLD_TIME = 500;
 // 心情值相关变量
 let moodValue = 0;
 const moodMax = 100;
-const moodIncrement = 5;
+const moodIncrement = 3;
 let hasIncreasedMood = false;
 let moodEffectTimer = 0;
 const moodEffectDuration = 500;
@@ -42,7 +42,7 @@ let isClapping = false;
 let clapTimer = 0;
 let CLAP_THRESHOLD = 0.2;
 const CLAP_HOLD_TIME = 500;
-const CLAP_INCREMENT = 3;
+const CLAP_INCREMENT = 2;
 
 // 麦克风状态管理 - 增强版
 const MIC_STATE = {
@@ -69,13 +69,14 @@ let userInteracted = false;
 
 // 串口通信相关变量（新增）
 let serial; // 串口对象
-let portName = '/dev/tty/usbmodem5B140361291'; // 替换为你的ESP32串口端口（Windows：COMx；Mac：/dev/tty.usbmodemxxx）
+let portName = '/dev/tty.usbmodem5B140361291'; // 替换为你的ESP32串口端口（Windows：COMx；Mac：/dev/tty.usbmodemxxx）
 let receivedScore = -1; // 存储从串口接收的评分
 let scoreCooldown = 0; // 评分处理冷却时间（避免重复触发）
 let receivedData = ""; // 用于存储接收到的完整数据
 const SCORE_COOLDOWN_DURATION = 1000; // 冷却时间1秒（防止重复处理同一评分）
 const SCORE_TO_MOOD_RATIO = 1; // 1分评分 = +1心情值（可按需调整）
 
+<<<<<<< HEAD
 // 新增：聊天记录管理
 let chatHistory = []; // 存储聊天记录，每个元素是 {sender: 'user/ai', content: '消息内容'}
 const MAX_CHAT_LINES = 8; // 最大显示聊天记录行数
@@ -89,6 +90,8 @@ function preload() {
   bgImg=loadImage('asset/bg.jpg');
 }
 
+=======
+>>>>>>> 86623402337a4445324887d11416518e9c3255c1
 function setup() {
   createCanvas(bgImg.width, bgImg.height); // 用图片尺寸做画布
   //console.log("图片尺寸：", bgImg.width, bgImg.height); 
@@ -127,6 +130,9 @@ function setup() {
   serial.on('data', gotSerialData);
   serial.on('error', onSerialError);
   serial.on('close', onSerialClosed);
+
+
+  
 }
 
 
@@ -166,14 +172,17 @@ function onSerialConnected() {
 
 // 现有 gotSerialData 函数修改
 function gotSerialData() {
-  let data = serial.readLine(); // 读取一行数据
+  //console.log("收到数据")
+  //let data = serial.read(); // 读取一行数据
+  let datao = serial.readStringUntil('\n');
+  let data = trim(datao)
   if (!data) return; // 无数据则返回
   
-  console.log('📥 收到串口数据：', data);
+  console.log('收到串口数据：', data);
   
   // 1. 处理评分数据（原有逻辑）
-  if (data.startsWith('SCORE:')) {
-    const score = parseInt(data.substring(6));
+  if (data.startsWith('P5_SCORE:')) {
+    const score = parseInt(data.substring(9));
     if (!isNaN(score) && score >= 0 && score <= 5 && millis() - scoreCooldown > SCORE_COOLDOWN_DURATION) {
       receivedScore = score;
       scoreCooldown = millis();
@@ -238,8 +247,10 @@ function handleScoreMoodIncrease(score) {
   }
 }
 
+
 function draw() {
   background(180, 180, 190);
+<<<<<<< HEAD
 
   image(bgImg, 850, 676, 600, 300); 
   // 混合模式：叠加（图片加载后再执行）
@@ -249,6 +260,8 @@ function draw() {
   // 重置混合模式
   blendMode(BLEND);
 
+=======
+>>>>>>> 86623402337a4445324887d11416518e9c3255c1
   // 显示状态信息（始终显示）
   displayMicStatus();
   displayTemporaryMessage();
@@ -605,7 +618,7 @@ function mousePressed() {
   if (micState === MIC_STATE.ACTIVE || micState === MIC_STATE.CALIBRATING) {
     if (moodValue < 100) {
       mainCharacter.wipeTears();
-      showTemporaryMessage("你安慰了小人", 1000);
+      showTemporaryMessage("you comfeorted her", 1000);
       
       // 增加心情值
       moodValue = min(moodValue + 2, moodMax);
@@ -618,7 +631,7 @@ function mousePressed() {
         value: "+2"
       });
     } else {
-      showTemporaryMessage("小人现在心情不错！", 1000);
+      showTemporaryMessage("She feels good now！", 1000);
     }
   }
 }
@@ -642,7 +655,7 @@ function displayMicStatus() {
       statusColor = color(200, 180, 50);
       break;
     case MIC_STATE.ACTIVE:
-      statusText = "🎤 麦克风已激活";
+      //statusText = "🎤 麦克风已激活";
       statusColor = color(50, 180, 50);
       break;
     case MIC_STATE.PERMISSION_DENIED:
@@ -1081,14 +1094,9 @@ function sendMessage() {
   let input = document.getElementById("messageInput");
   let message = input.value.trim();
   if (message) {
-    // 新增：添加用户消息到聊天记录
-    chatHistory.push({ sender: 'user', content: message });
-    // 限制聊天记录最大行数
-    if (chatHistory.length > MAX_CHAT_LINES) {
-      chatHistory.shift(); // 删除最旧的一条
-    }
-    
-    serial.write(message + "\n"); // 发送消息给 ESP32，必须加换行符
+
+    let messageWithMood = message + "|" + "这是你现在的情绪值" + moodValue;
+    serial.write(messageWithMood + "\n"); // 发送消息给 ESP32，必须加换行符
     console.log("已发送:", message);
     input.value = ""; // 清空输入框
   }
