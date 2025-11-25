@@ -69,7 +69,7 @@ let userInteracted = false;
 
 // 串口通信相关变量（新增）
 let serial; // 串口对象
-let portName = '/dev/tty/usbmodem5B140361291'; // 替换为你的ESP32串口端口（Windows：COMx；Mac：/dev/tty.usbmodemxxx）
+let portName = '/dev/cu.usbmodem5B140361291'; // 替换为你的ESP32串口端口（Windows：COMx；Mac：/dev/tty.usbmodemxxx）
 let receivedScore = -1; // 存储从串口接收的评分
 let scoreCooldown = 0; // 评分处理冷却时间（避免重复触发）
 let receivedData = ""; // 用于存储接收到的完整数据
@@ -165,8 +165,8 @@ function gotSerialData() {
   console.log('📥 收到串口数据：', data);
   
   // 1. 处理评分数据（原有逻辑）
-  if (data.startsWith('SCORE:')) {
-    const score = parseInt(data.substring(6));
+  if (data.startsWith('P5_SCORE:')) {
+    const score = parseInt(data.substring(9));
     if (!isNaN(score) && score >= 0 && score <= 5 && millis() - scoreCooldown > SCORE_COOLDOWN_DURATION) {
       receivedScore = score;
       scoreCooldown = millis();
@@ -231,9 +231,46 @@ function handleScoreMoodIncrease(score) {
   }
 }
 
+// 在 draw 函数里添加，比如放在 displayTemporaryMessage 之后
+function drawChatBox() {
+  // 聊天框位置和大小
+  const chatX = width - CHAT_BOX_WIDTH - 20;
+  const chatY = height - CHAT_BOX_HEIGHT - 80;  // 避开输入框
+  
+  // 绘制聊天框背景
+  fill(255, 255, 255, 240);
+  stroke(0, 0, 0, 100);
+  rect(chatX, chatY, CHAT_BOX_WIDTH, CHAT_BOX_HEIGHT, 5);
+  
+  // 绘制聊天记录
+  fill(0);
+  textSize(CHAT_FONT_SIZE);
+  textAlign(LEFT, TOP);
+  let lineHeight = CHAT_FONT_SIZE + 5;
+  let currentY = chatY + 10;
+  
+  for (let i = 0; i < chatHistory.length; i++) {
+    let msg = chatHistory[i];
+    let displayText = msg.sender === 'user' ? `你: ${msg.content}` : `小人: ${msg.content}`;
+    
+    // 用户消息右对齐，AI消息左对齐
+    if (msg.sender === 'user') {
+      textAlign(RIGHT, TOP);
+      text(displayText, chatX + CHAT_BOX_WIDTH - 10, currentY);
+    } else {
+      textAlign(LEFT, TOP);
+      text(displayText, chatX + 10, currentY);
+    }
+    
+    currentY += lineHeight;
+    // 超出聊天框高度就停止绘制
+    if (currentY > chatY + CHAT_BOX_HEIGHT - 10) break;
+  }
+}
+
 function draw() {
   background(180, 180, 190);
-  
+  drawChatBox();
   // 显示状态信息（始终显示）
   displayMicStatus();
   displayTemporaryMessage();
