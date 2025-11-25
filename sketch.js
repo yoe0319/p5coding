@@ -32,7 +32,7 @@ const WAVE_HOLD_TIME = 500;
 // 心情值相关变量
 let moodValue = 0;
 const moodMax = 100;
-const moodIncrement = 5;
+const moodIncrement = 3;
 let hasIncreasedMood = false;
 let moodEffectTimer = 0;
 const moodEffectDuration = 500;
@@ -42,7 +42,7 @@ let isClapping = false;
 let clapTimer = 0;
 let CLAP_THRESHOLD = 0.2;
 const CLAP_HOLD_TIME = 500;
-const CLAP_INCREMENT = 3;
+const CLAP_INCREMENT = 2;
 
 // 麦克风状态管理 - 增强版
 const MIC_STATE = {
@@ -75,13 +75,6 @@ let scoreCooldown = 0; // 评分处理冷却时间（避免重复触发）
 let receivedData = ""; // 用于存储接收到的完整数据
 const SCORE_COOLDOWN_DURATION = 1000; // 冷却时间1秒（防止重复处理同一评分）
 const SCORE_TO_MOOD_RATIO = 1; // 1分评分 = +1心情值（可按需调整）
-
-// 新增：聊天记录管理
-let chatHistory = []; // 存储聊天记录，每个元素是 {sender: 'user/ai', content: '消息内容'}
-const MAX_CHAT_LINES = 8; // 最大显示聊天记录行数
-const CHAT_BOX_WIDTH = 350; // 聊天框宽度
-const CHAT_BOX_HEIGHT = 200; // 聊天框高度
-const CHAT_FONT_SIZE = 14; // 聊天文字大小
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -168,7 +161,7 @@ function gotSerialData() {
   let data = trim(datao)
   if (!data) return; // 无数据则返回
   
-  console.log('📥 收到串口数据：', data);
+  console.log('收到串口数据：', data);
   
   // 1. 处理评分数据（原有逻辑）
   if (data.startsWith('P5_SCORE:')) {
@@ -237,46 +230,9 @@ function handleScoreMoodIncrease(score) {
   }
 }
 
-// 在 draw 函数里添加，比如放在 displayTemporaryMessage 之后
-function drawChatBox() {
-  // 聊天框位置和大小
-  const chatX = width - CHAT_BOX_WIDTH - 20;
-  const chatY = height - CHAT_BOX_HEIGHT - 80;  // 避开输入框
-  
-  // 绘制聊天框背景
-  fill(255, 255, 255, 240);
-  stroke(0, 0, 0, 100);
-  rect(chatX, chatY, CHAT_BOX_WIDTH, CHAT_BOX_HEIGHT, 5);
-  
-  // 绘制聊天记录
-  fill(0);
-  textSize(CHAT_FONT_SIZE);
-  textAlign(LEFT, TOP);
-  let lineHeight = CHAT_FONT_SIZE + 5;
-  let currentY = chatY + 10;
-  
-  for (let i = 0; i < chatHistory.length; i++) {
-    let msg = chatHistory[i];
-    let displayText = msg.sender === 'user' ? `你: ${msg.content}` : `小人: ${msg.content}`;
-    
-    // 用户消息右对齐，AI消息左对齐
-    if (msg.sender === 'user') {
-      textAlign(RIGHT, TOP);
-      text(displayText, chatX + CHAT_BOX_WIDTH - 10, currentY);
-    } else {
-      textAlign(LEFT, TOP);
-      text(displayText, chatX + 10, currentY);
-    }
-    
-    currentY += lineHeight;
-    // 超出聊天框高度就停止绘制
-    if (currentY > chatY + CHAT_BOX_HEIGHT - 10) break;
-  }
-}
 
 function draw() {
   background(180, 180, 190);
-  drawChatBox();
   // 显示状态信息（始终显示）
   displayMicStatus();
   displayTemporaryMessage();
@@ -635,7 +591,7 @@ function mousePressed() {
   if (micState === MIC_STATE.ACTIVE || micState === MIC_STATE.CALIBRATING) {
     if (moodValue < 100) {
       mainCharacter.wipeTears();
-      showTemporaryMessage("你安慰了小人", 1000);
+      showTemporaryMessage("you comfeorted her", 1000);
       
       // 增加心情值
       moodValue = min(moodValue + 2, moodMax);
@@ -648,7 +604,7 @@ function mousePressed() {
         value: "+2"
       });
     } else {
-      showTemporaryMessage("小人现在心情不错！", 1000);
+      showTemporaryMessage("She feels good now！", 1000);
     }
   }
 }
@@ -672,7 +628,7 @@ function displayMicStatus() {
       statusColor = color(200, 180, 50);
       break;
     case MIC_STATE.ACTIVE:
-      statusText = "🎤 麦克风已激活";
+      //statusText = "🎤 麦克风已激活";
       statusColor = color(50, 180, 50);
       break;
     case MIC_STATE.PERMISSION_DENIED:
@@ -1111,14 +1067,9 @@ function sendMessage() {
   let input = document.getElementById("messageInput");
   let message = input.value.trim();
   if (message) {
-    // 新增：添加用户消息到聊天记录
-    chatHistory.push({ sender: 'user', content: message });
-    // 限制聊天记录最大行数
-    if (chatHistory.length > MAX_CHAT_LINES) {
-      chatHistory.shift(); // 删除最旧的一条
-    }
-    
-    serial.write(message + "\n"); // 发送消息给 ESP32，必须加换行符
+
+    let messageWithMood = message + "|" + "这是你现在的情绪值" + moodValue;
+    serial.write(messageWithMood + "\n"); // 发送消息给 ESP32，必须加换行符
     console.log("已发送:", message);
     input.value = ""; // 清空输入框
   }
