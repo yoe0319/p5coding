@@ -27,6 +27,8 @@ let floatTextEffects = [];
 let isWavingTimer = 0;
 const WAVE_HOLD_TIME = 500;
 
+
+
 // 心情值相关变量
 let moodValue = 0;
 const moodMax = 100;
