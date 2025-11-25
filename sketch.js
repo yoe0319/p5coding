@@ -76,24 +76,22 @@ let receivedData = ""; // 用于存储接收到的完整数据
 const SCORE_COOLDOWN_DURATION = 1000; // 冷却时间1秒（防止重复处理同一评分）
 const SCORE_TO_MOOD_RATIO = 1; // 1分评分 = +1心情值（可按需调整）
 
-<<<<<<< HEAD
 // 新增：聊天记录管理
 let chatHistory = []; // 存储聊天记录，每个元素是 {sender: 'user/ai', content: '消息内容'}
 const MAX_CHAT_LINES = 8; // 最大显示聊天记录行数
 const CHAT_BOX_WIDTH = 350; // 聊天框宽度
 const CHAT_BOX_HEIGHT = 200; // 聊天框高度
 const CHAT_FONT_SIZE = 14; // 聊天文字大小
-
+const SCALE_FACTOR = 3//放大参数
 let bgImg; // 存储图片
 
 function preload() {
   bgImg=loadImage('asset/bg.jpg');
 }
 
-=======
->>>>>>> 86623402337a4445324887d11416518e9c3255c1
+
 function setup() {
-  createCanvas(bgImg.width, bgImg.height); // 用图片尺寸做画布
+  createCanvas(windowWidth, windowHeight); // 用图片尺寸做画布
   //console.log("图片尺寸：", bgImg.width, bgImg.height); 
   // 检查是否为安全上下文
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
@@ -250,9 +248,8 @@ function handleScoreMoodIncrease(score) {
 
 function draw() {
   background(180, 180, 190);
-<<<<<<< HEAD
 
-  image(bgImg, 850, 676, 600, 300); 
+  image(bgImg, 0, 0, windowWidth, windowHeight); 
   // 混合模式：叠加（图片加载后再执行）
   blendMode(OVERLAY);
   fill(0, 100, 200, 120);
@@ -260,8 +257,7 @@ function draw() {
   // 重置混合模式
   blendMode(BLEND);
 
-=======
->>>>>>> 86623402337a4445324887d11416518e9c3255c1
+
   // 显示状态信息（始终显示）
   displayMicStatus();
   displayTemporaryMessage();
@@ -331,7 +327,14 @@ function draw() {
   mainCharacter.display();
 
   // 生成路人
-  if (millis() - lastPasserbyTime > random(3000, 8000)) {
+  // 生成路人：心情值影响间隔（心情越好，间隔越短）
+  const minInterval = 5000;
+  const maxInterval = 12000;
+  // 心情值0~100映射到 1~0.3 的系数（心情越好，系数越小，间隔越短）
+  const moodFactor = map(moodValue, 0, 100, 1, 0.3);
+  let randomInterval = randomGaussian((minInterval + maxInterval) / 2, 2000) * moodFactor;
+  randomInterval = constrain(randomInterval, minInterval, maxInterval);
+  if (millis() - lastPasserbyTime > randomInterval ) {
     let side = random() > 0.5 ? 'left' : 'right';
     passersby.push(new Passerby(side));
     lastPasserbyTime = millis();
@@ -731,7 +734,7 @@ class Character {
   // 保留您原有的Character类实现
   constructor(x, y, isSitting = false) {
     this.x = x;
-    this.y = y;
+    this.y = height * 0.85 - 40 * SCALE_FACTOR;
     this.isSitting = isSitting;
     this.eyeY = -5;
     this.mouthY = 10;
@@ -838,7 +841,7 @@ class Character {
   display() {
     push();
     translate(this.x, this.y);
-
+    scale(SCALE_FACTOR); 
     stroke(0);
     strokeWeight(2);
     noFill();
@@ -972,9 +975,9 @@ class Character {
 class Passerby {
   constructor(side) {
     this.side = side;
-    this.x = side === 'left' ? -50 : width + 50;
-    this.y = height * 0.75 - 65; // 脚底对齐地面线
-    this.speed = WALK_SPEED;
+    this.x = side === 'left' ? -50 : width + 50 * SCALE_FACTOR;
+    this.y = height * 0.85 - 40* SCALE_FACTOR; // 脚底对齐地面线
+    this.speed = WALK_SPEED*1.5;
     this.hasInteracted = false;
     this.interactionTimer = 0;
     this.walkFrame = 0;
@@ -1018,7 +1021,7 @@ class Passerby {
   display() {
     push();
     translate(this.x, this.y);
-
+    scale(SCALE_FACTOR); 
     stroke(0);
     strokeWeight(2);
     noFill();
