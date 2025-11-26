@@ -83,17 +83,12 @@ const SCORE_TO_MOOD_RATIO = 1; // 1分评分 = +1心情值（可按需调整）
 let flowerEmojis = [];
 const FLOWER_COUNT = 10; // emoji数量
 
-// 角色移动和镜头跟随
-let cameraX = 0; // 镜头X偏移量
-const MOVE_SPEED = 2; // 主角移动速度
-let isMainCharacterMoving = false;
-let hasReachedEnd = false; // 是否到达终点
-
-// 第二个哭泣小人
-let secondCharacter = null;
-let secondCharacterSpawned = false;
-const SPAWN_DISTANCE = 1200; // 生成第二个小人的距离
-let hasMetSecondCharacter = false;
+// 剧情流程控制
+let gameState = 'normal'; // normal/walking_away/black_screen/second_character/resetting
+let stateTimer = 0;
+let happyCharacter = null;
+let secondCharacterDialog = "";
+const MOVE_SPEED = 2;
 
 // 新增：聊天记录管理
 let chatHistory = []; // 存储聊天记录，每个元素是 {sender: 'user/ai', content: '消息内容'}
@@ -331,10 +326,6 @@ function handleScoreMoodIncrease(score) {
 
 
 function draw() {
-  //background(180, 180, 190);
-
-  //image(bgImg, 0, 0, windowWidth, windowHeight); 
-
   const targetBlend = map(moodValue, 0, moodMax, 0, 1);
   // 2. 平滑过渡混合比例（避免突变）
   blendAmount = lerp(blendAmount, targetBlend, BLEND_SMOOTH);
@@ -354,6 +345,91 @@ function draw() {
   // 重置混合模式
   blendMode(BLEND);
 
+  // ========== 新增状态判断 ==========
+  if (gameState === 'normal') {
+    // 心情值满触发剧情
+    if (moodValue >= moodMax) {
+      mainCharacter.isMoving = true; // 主角开始向右走
+      gameState = 'walking_away';
+    }
+  } 
+  // 主角离开屏幕
+  else if (gameState === 'walking_away') {
+    if (mainCharacter.x > width + 100) {
+       gameState = 'black_screen';
+       stateTimer = millis();
+    }
+  } 
+  // 黑屏过渡
+  else if (gameState === 'black_screen') {
+    background(0); // 黑屏
+    if (millis() - stateTimer > 2000) { // 黑屏2秒
+      gameState = 'second_character';
+      // 创建微笑小人
+      happyCharacter = new Character(-100, height * 0.85 - 40 * SCALE_FACTOR, false, false);
+      happyCharacter.isSmiling = true;
+      //happyCharacter.isMoving = true;
+      // 重置主角位置并恢复哭泣状态
+      mainCharacter.x = width / 2;
+      mainCharacter.isMoving = false; // 停止移动
+      mainCharacter.isSmiling = false;
+      mainCharacter.isCrying = true;
+      moodValue = 0; // 重置心情值
+    }
+    return; // 跳过后续绘制
+  } 
+  // 添加 resetting 状态：
+  else if (gameState === 'resetting') {
+  // 重置所有状态回到初始
+    happyCharacter = null;
+    secondCharacterDialog = "";
+    moodValue = 0;
+    mainCharacter.isSmiling = false;
+    mainCharacter.isCrying = true;
+    mainCharacter.x = width / 2;
+    gameState = 'normal'; // 回到正常状态
+  } 
+  // 微笑小人互动
+  else if (gameState === 'second_character') {
+    if(happyCharacter)
+      //if (happyCharacter && happyCharacter.x > width / 2 - 100 && !secondCharacterDialog) {
+        //happyCharacter.isMoving = false; // 停在主角面前
+        //secondCharacterDialog = "You are the best";
+        //stateTimer = millis();
+      //}
+      if (happyCharacter.x < width / 2 - 100 && !secondCharacterDialog) {
+        happyCharacter.x += 5; // 持续移动
+      }
+      // 到达位置后停止并显示对话
+      else if (!secondCharacterDialog) {
+        happyCharacter.isMoving = false; 
+        secondCharacterDialog = "You are the best";
+        stateTimer = millis();
+    }
+
+    // 停留3秒后离开
+      if (secondCharacterDialog && millis() - stateTimer > 3000) {
+        happyCharacter.isMoving = true;
+        secondCharacterDialog = "";
+        if (happyCharacter.x > width + 100) {
+        happyCharacter = null; 
+        gameState = 'resetting';
+        }
+      }
+      happyCharacter.update();
+      happyCharacter.display(false);
+    // 显示对话
+      if (secondCharacterDialog&& happyCharacter) {
+        push();
+        translate(happyCharacter.x, happyCharacter.y - 40 * SCALE_FACTOR);
+        fill(255,240,200); stroke(0); strokeWeight(1);
+        rect(-60, -20, 120, 30, 15);
+        fill(0); noStroke(); textSize(16); textAlign(CENTER);
+        text(secondCharacterDialog, 0, 0);
+        pop();
+      }
+    }
+
    // 心情值满时生成小花emoji
   if (moodValue >= moodMax && frameCount % 5 === 0 && flowerEmojis.length < FLOWER_COUNT) {
     flowerEmojis.push(new FlowerEmoji(mainCharacter.x, mainCharacter.y - 60));
@@ -367,6 +443,12 @@ function draw() {
       flowerEmojis.splice(i, 1);
     }
   }
+
+  // 在 draw 函数中添加开心小人的小花emoji效果
+  if (happyCharacter && happyCharacter.isSmiling && frameCount % 5 === 0 && flowerEmojis.length < FLOWER_COUNT) {
+  flowerEmojis.push(new FlowerEmoji(happyCharacter.x, happyCharacter.y - 60));
+  }
+
 
     // 显示状态信息（始终显示）
   displayMicStatus();
@@ -406,7 +488,7 @@ function draw() {
     }
   }
 
-  if (triggerType) {
+  if (triggerType && gameState !== 'second_character') {
     showWaveMarker = true;
     markerTimer = millis();
 
@@ -435,9 +517,8 @@ function draw() {
   
   // 更新和绘制角色
   mainCharacter.update(); 
-  mainCharacter.display();
-
-  // 生成路人
+  mainCharacter.display(true);
+  
   // 生成路人：心情值影响间隔（心情越好，间隔越短）
   const minInterval = 5000;
   const maxInterval = 12000;
@@ -732,7 +813,7 @@ function mousePressed() {
   if (micState === MIC_STATE.ACTIVE || micState === MIC_STATE.CALIBRATING) {
     if (moodValue < 100) {
       mainCharacter.wipeTears();
-      showTemporaryMessage("you comfeorted her", 1000);
+      showTemporaryMessage("you comforted her", 1000);
       
       // 增加心情值
       moodValue = min(moodValue + 2, moodMax);
@@ -904,7 +985,7 @@ class Character {
     }
 
     // 表情动画：偶尔低头、抬头、抹眼泪
-    if (tearDrop && this.tearCount < 3) {
+    if (!this.isSmiling && tearDrop && this.tearCount < 3) {
       this.eyeY = -8; // 更悲伤的表情
       this.mouthY = 12;
       this.tearCount++;
@@ -964,10 +1045,9 @@ class Character {
     }
   }
 
-  display() {
+  display(showMood = true) {
     push();
-    //translate(this.x, this.y);
-    translate(this.x, this.y); 
+    translate(this.x, this.y);
     scale(SCALE_FACTOR); 
     stroke(0);
     strokeWeight(2);
@@ -977,6 +1057,7 @@ class Character {
     ellipse(0, 0, 30, 30);
     
     // ---------------------- 绘制心情值竖长方形 ----------------------
+    if (showMood){
     const moodBoxX = 30; 
     const moodBoxY = -30; 
     const moodBoxWidth = 12; 
@@ -1017,7 +1098,7 @@ class Character {
     const quantTextX = moodBoxX + moodBoxWidth / 2; 
     const quantTextY = moodBoxY + moodBoxHeight + 2; 
     text(quantText, quantTextX, quantTextY);
-
+  
     // ---------------------- 绘制"+5"飘起特效 ----------------------
     for (let i = floatTextEffects.length - 1; i >= 0; i--) {
       const effect = floatTextEffects[i];
@@ -1039,6 +1120,7 @@ class Character {
       if (effect.alpha < 0) {
         floatTextEffects.splice(i, 1);
       }
+    }
     }
 
     stroke(0);
@@ -1087,7 +1169,7 @@ class Character {
     line(0, 25, 7, 35);
 
     // 掉眼泪动画（从眼睛下方滴落）
-    if (tearDrop && this.tearCount > 0) {
+    if (!this.isSmiling && tearDrop && this.tearCount > 0) {
       fill(200, 220, 255, 180);
       // 两只眼睛都可能掉泪
       ellipse(-5.5, this.eyeY + 6, 4, 6); // 左眼泪
@@ -1279,6 +1361,8 @@ function windowResized() {
 
 // 现有 sendMessage 函数修改
 function sendMessage() {
+  // 剧情期间禁用输入
+  if (gameState !== 'normal') return;
   let input = document.getElementById("messageInput");
   let message = input.value.trim();
   if (message) {
