@@ -64,6 +64,11 @@ let noiseSamples = [];
 const NOISE_SAMPLE_SIZE = 50;
 let volumeLevel = 0; // 当前音量级别，便于调试
 
+let interactionTriggered = false;
+let interactionCooldown = 0;
+const INTERACTION_COOLDOWN_DURATION = 3000; // 互动冷却时间3秒
+let customDialogText = ""; // 存储用户输入的对话框内容
+
 // 首次用户交互标记
 let userInteracted = false;
 
@@ -89,6 +94,34 @@ function preload() {
   bgImg=loadImage('asset/bg.jpg');
 }
 
+function findClosestPasserby() {
+  if (passersby.length === 0) return null;
+  let closest = passersby[0];
+  let minDistance = abs(closest.x - mainCharacter.x);
+  for (let p of passersby) {
+    let distance = abs(p.x - mainCharacter.x);
+    if (distance < minDistance) {
+      minDistance = distance;
+      closest = p;
+    }
+  }
+  return closest;
+}
+
+// 统一处理路人互动（停止+显示对话框）
+function triggerPasserbyInteraction(dialogText) {
+  // 冷却时间内不重复触发
+  if (millis() - interactionCooldown < INTERACTION_COOLDOWN_DURATION) return;
+  
+  const closestPasserby = findClosestPasserby();
+  if (closestPasserby) {
+    closestPasserby.stopAndShowDialog(dialogText);
+    showTemporaryMessage(`路人停下并说：${dialogText}`, 5000);
+  }
+  
+  // 更新冷却时间
+  interactionCooldown = millis();
+}
 
 function setup() {
   createCanvas(windowWidth, windowHeight); // 用图片尺寸做画布
@@ -316,6 +349,7 @@ function draw() {
       horizontalAmplitude: random(3, 7), // 随机幅度(3-7像素)
       horizontalFrequency: 0.03 + random(0.02) // 随机频率
     });
+    triggerPasserbyInteraction("😊");
   }
 
   if (!isWaving && !isClapping) {
@@ -357,11 +391,11 @@ function draw() {
   }
 }
 
-function drawMuddyGround() {
-  fill(100, 80, 50);
-  noStroke();
-  rect(0, height * 0.75, width, height * 0.25);
-}
+//function drawMuddyGround() {
+  //fill(100, 80, 50);
+  //noStroke();
+  //rect(0, height * 0.75, width, height * 0.25);
+//}
 
 function checkWaving() {
   if (isWaving && millis() - isWavingTimer > WAVE_HOLD_TIME) {
@@ -982,6 +1016,10 @@ class Passerby {
     this.interactionTimer = 0;
     this.walkFrame = 0;
     this.message = "";
+    // 新增属性
+    this.isStopped = false; // 是否停止行走
+    this.stopTimer = 0; // 停止计时器
+    this.stopDuration = 5000; // 停止持续时间
   }
 
   update() {
@@ -993,6 +1031,19 @@ class Passerby {
 
     // 行走动画
     this.walkFrame += WALK_FRAME_SPEED;
+    if (this.walkFrame > 2) this.walkFrame = 0;
+
+        
+    //只有未停止时才移动
+    if (!this.isStopped) {
+      if (this.side === 'left') {
+        this.x += this.speed;
+      } else {
+        this.x -= this.speed;
+      }
+    }
+        // 行走动画（停止时也保留轻微动画）
+    this.walkFrame += this.isStopped ? WALK_FRAME_SPEED * 0.3 : WALK_FRAME_SPEED;
     if (this.walkFrame > 2) this.walkFrame = 0;
 
     // 当走到主角附近时互动
@@ -1010,6 +1061,14 @@ class Passerby {
       //   this.message = "";
       //   showTemporaryMessage("路人安慰了小人", 1000);
       // }, 500);
+    }
+
+     // 停止状态计时
+    if (this.isStopped) {
+      if (millis() - this.stopTimer > this.stopDuration) {
+        this.isStopped = false; // 时间到后继续行走
+        this.message = ""; // 清空对话框
+      }
     }
 
     // 清除消息
@@ -1073,7 +1132,29 @@ class Passerby {
     //   ellipse(0, -38, 40, 20);
     // }
 
+     // 显示对话框（修改：支持自定义内容和气泡样式）
+    if (this.message) {
+      // 气泡背景
+      stroke(0);
+      fill(255, 240, 200, 255); // 暖黄色气泡
+      ellipse(0, -38, textWidth(this.message) + 20, 25); // 自适应宽度
+      
+      // 对话框文字
+      fill(0);
+      noStroke();
+      textAlign(CENTER, CENTER);
+      textSize(14);
+      text(this.message, 0, -38);
+    }
+
     pop();
+  }
+
+    //停止并显示对话框方法
+  stopAndShowDialog(text) {
+    this.isStopped = true;
+    this.stopTimer = millis();
+    this.message = text;
   }
 
   isOffScreen() {
@@ -1097,6 +1178,10 @@ function sendMessage() {
   let input = document.getElementById("messageInput");
   let message = input.value.trim();
   if (message) {
+
+    customDialogText = message;
+    // 触发路人互动（显示用户输入的文字）
+    triggerPasserbyInteraction(customDialogText);
 
     let messageWithMood = message + "|" + "这是你现在的情绪值" + moodValue;
     serial.write(messageWithMood + "\n"); // 发送消息给 ESP32，必须加换行符
