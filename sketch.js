@@ -27,8 +27,6 @@ let floatTextEffects = [];
 let isWavingTimer = 0;
 const WAVE_HOLD_TIME = 500;
 
-
-
 // 心情值相关变量
 let moodValue = 0;
 const moodMax = 100;
@@ -89,9 +87,13 @@ const CHAT_BOX_HEIGHT = 200; // 聊天框高度
 const CHAT_FONT_SIZE = 14; // 聊天文字大小
 const SCALE_FACTOR = 3//放大参数
 let bgImg; // 存储图片
+let bgColor; // 彩色背景图
+let blendAmount = 0; // 混合比例（0=全黑白，1=全彩色）
+const BLEND_SMOOTH = 0.02; // 混合过渡的平滑系数
 
 function preload() {
   bgImg=loadImage('asset/bg.jpg');
+  bgColor = loadImage('asset/bg2.jpg'); // 对应的彩色版本
 }
 
 function findClosestPasserby() {
@@ -280,16 +282,28 @@ function handleScoreMoodIncrease(score) {
 
 
 function draw() {
-  background(180, 180, 190);
+  //background(180, 180, 190);
 
-  image(bgImg, 0, 0, windowWidth, windowHeight); 
+  //image(bgImg, 0, 0, windowWidth, windowHeight); 
+
+  const targetBlend = map(moodValue, 0, moodMax, 0, 1);
+  // 2. 平滑过渡混合比例（避免突变）
+  blendAmount = lerp(blendAmount, targetBlend, BLEND_SMOOTH);
+
+  // 3. 绘制混合后的背景
+  push();
+  // 先画黑白图
+  image(bgImg, 0, 0, windowWidth, windowHeight);
+  // 再叠加彩色图，通过alpha通道控制显示比例
+  tint(255, 255, 255, blendAmount * 255);
+  image(bgColor, 0, 0, windowWidth, windowHeight);
+  pop();
   // 混合模式：叠加（图片加载后再执行）
   blendMode(OVERLAY);
   fill(0, 100, 200, 120);
   rect(50, 50, 300, 300);
   // 重置混合模式
   blendMode(BLEND);
-
 
   // 显示状态信息（始终显示）
   displayMicStatus();
