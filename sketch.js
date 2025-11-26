@@ -79,6 +79,22 @@ let receivedData = ""; // 用于存储接收到的完整数据
 const SCORE_COOLDOWN_DURATION = 1000; // 冷却时间1秒（防止重复处理同一评分）
 const SCORE_TO_MOOD_RATIO = 1; // 1分评分 = +1心情值（可按需调整）
 
+// 小花emoji相关
+let flowerEmojis = [];
+const FLOWER_COUNT = 10; // emoji数量
+
+// 角色移动和镜头跟随
+let cameraX = 0; // 镜头X偏移量
+const MOVE_SPEED = 2; // 主角移动速度
+let isMainCharacterMoving = false;
+let hasReachedEnd = false; // 是否到达终点
+
+// 第二个哭泣小人
+let secondCharacter = null;
+let secondCharacterSpawned = false;
+const SPAWN_DISTANCE = 1200; // 生成第二个小人的距离
+let hasMetSecondCharacter = false;
+
 // 新增：聊天记录管理
 let chatHistory = []; // 存储聊天记录，每个元素是 {sender: 'user/ai', content: '消息内容'}
 const MAX_CHAT_LINES = 8; // 最大显示聊天记录行数
@@ -123,6 +139,39 @@ function triggerPasserbyInteraction(dialogText) {
   
   // 更新冷却时间
   interactionCooldown = millis();
+}
+
+// 小花Emoji类
+class FlowerEmoji {
+  constructor(x, y) {
+    this.x = x + random(-30, 30);
+    this.y = y + random(-50, -20);
+    this.size = random(12, 16); // emoji大小
+    this.speedY = random(-1, -0.5); // 向上飘
+    this.speedX = random(-0.5, 0.5); // 左右晃动
+    this.alpha = 255;
+    this.emoji = ['🌸', '🌼', '🌺', '💐', '🌻'][Math.floor(random(5))]; // 随机花emoji
+  }
+
+  update() {
+    this.y += this.speedY;
+    this.x += this.speedX;
+    this.alpha -= 3; // 渐隐
+  }
+
+  display() {
+    push();
+    translate(this.x, this.y);
+    fill(0, this.alpha);
+    textSize(this.size);
+    textAlign(CENTER, CENTER);
+    text(this.emoji, 0, 0);
+    pop();
+  }
+
+  isDead() {
+    return this.alpha < 0;
+  }
 }
 
 function setup() {
@@ -305,7 +354,21 @@ function draw() {
   // 重置混合模式
   blendMode(BLEND);
 
-  // 显示状态信息（始终显示）
+   // 心情值满时生成小花emoji
+  if (moodValue >= moodMax && frameCount % 5 === 0 && flowerEmojis.length < FLOWER_COUNT) {
+    flowerEmojis.push(new FlowerEmoji(mainCharacter.x, mainCharacter.y - 60));
+  }
+
+  // 更新和绘制小花emoji
+  for (let i = flowerEmojis.length - 1; i >= 0; i--) {
+    flowerEmojis[i].update();
+    flowerEmojis[i].display();
+    if (flowerEmojis[i].isDead()) {
+      flowerEmojis.splice(i, 1);
+    }
+  }
+
+    // 显示状态信息（始终显示）
   displayMicStatus();
   displayTemporaryMessage();
   
@@ -780,13 +843,16 @@ function displayTemporaryMessage() {
 
 class Character {
   // 保留您原有的Character类实现
-  constructor(x, y, isSitting = false) {
+  constructor(x, y, isSitting = false, isCrying = true) {
     this.x = x;
     this.y = height * 0.85 - 40 * SCALE_FACTOR;
     this.isSitting = isSitting;
     this.eyeY = -5;
     this.mouthY = 10;
     this.tearCount = 0;
+    this.isCrying = isCrying;
+    this.isSmiling = false;
+    this.isMoving = false;
 
     // --- 抹眼泪动画相关属性 ---
     this.leftArmState = "default";
@@ -825,6 +891,18 @@ class Character {
   }
   
   update() {
+    // 心情值满时微笑
+    if (moodValue >= moodMax && this.isCrying) {
+      this.isSmiling = true;
+      this.isCrying = false;
+      this.eyeY = -8; // 笑眯眼
+    }
+
+    // 移动逻辑
+    if (this.isMoving) {
+      this.x += MOVE_SPEED;
+    }
+
     // 表情动画：偶尔低头、抬头、抹眼泪
     if (tearDrop && this.tearCount < 3) {
       this.eyeY = -8; // 更悲伤的表情
@@ -888,7 +966,8 @@ class Character {
 
   display() {
     push();
-    translate(this.x, this.y);
+    //translate(this.x, this.y);
+    translate(this.x, this.y); 
     scale(SCALE_FACTOR); 
     stroke(0);
     strokeWeight(2);
@@ -966,17 +1045,27 @@ class Character {
     strokeWeight(2);
 
     
-    // 画两只眼睛
+    // 眼睛（微笑时眯眼）
     fill(0);
-    ellipse(-5, this.eyeY, 2, 2); // 左眼
-    ellipse(5, this.eyeY, 2, 2);  // 右眼
+    if (this.isSmiling) {
+      // 笑眯眼
+      ellipse(-5, -8, 3, 1);
+      ellipse(5, -8, 3, 1);
+    } else {
+      ellipse(-5, this.eyeY, 2, 2);
+      ellipse(5, this.eyeY, 2, 2);
+    }
 
-    // 悲伤嘴巴：向下弯的弧线（贴住脸边缘，只画右半边）
     noFill();
-    if(moodValue<=80){
-      arc(0, this.mouthY, 15, 8, PI*10/9, -PI/9); // 从左到右画半圆，只显示右半部分
-    }else{
-      line(-5,7,5,7)
+    if (this.isSmiling) {
+      // 微笑嘴巴
+      arc(0, 8, 15, 8, 0, PI);
+    } else if (this.isCrying && moodValue <= 80) {
+      // 哭泣嘴巴
+      arc(0, this.mouthY, 15, 8, PI*10/9, -PI/9);
+    } else {
+      // 普通嘴巴
+      line(-5,7,5,7);
     }
     
 
@@ -1021,9 +1110,10 @@ class Character {
 }
 
 class Passerby {
-  constructor(side) {
+  constructor(side,spawnX = null) {
     this.side = side;
     this.x = side === 'left' ? -50 : width + 50 * SCALE_FACTOR;
+    //this.x = spawnX || (side === 'left' ? -50 + cameraX : width + 50 + cameraX);
     this.y = height * 0.85 - 40* SCALE_FACTOR; // 脚底对齐地面线
     this.speed = WALK_SPEED*1.5;
     this.hasInteracted = false;
