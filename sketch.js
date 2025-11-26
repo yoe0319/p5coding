@@ -88,7 +88,9 @@ let gameState = 'normal'; // normal/walking_away/black_screen/second_character/r
 let stateTimer = 0;
 let happyCharacter = null;
 let secondCharacterDialog = "";
-const MOVE_SPEED = 2;
+const MOVE_SPEED = 6;
+let hasSpoken = false; // 添加对话标记
+let resetCount = 0; // 重置次数计数
 
 // 新增：聊天记录管理
 let chatHistory = []; // 存储聊天记录，每个元素是 {sender: 'user/ai', content: '消息内容'}
@@ -368,30 +370,53 @@ function draw() {
       // 创建微笑小人
       happyCharacter = new Character(-100, height * 0.85 - 40 * SCALE_FACTOR, false, false);
       happyCharacter.isSmiling = true;
-      //happyCharacter.isMoving = true;
       // 重置主角位置并恢复哭泣状态
       mainCharacter.x = width / 2;
+      mainCharacter.y = height * 0.75 - 65;
       mainCharacter.isMoving = false; // 停止移动
       mainCharacter.isSmiling = false;
       mainCharacter.isCrying = true;
       moodValue = 0; // 重置心情值
+      hasSpoken = false
     }
-    return; // 跳过后续绘制
+    displayMicStatus();
+    displayTemporaryMessage();
   } 
   // 添加 resetting 状态：
   else if (gameState === 'resetting') {
   // 重置所有状态回到初始
     happyCharacter = null;
     secondCharacterDialog = "";
-    moodValue = 0;
+    hasSpoken = false;
+
+    mainCharacter.x = width / 2;
+    mainCharacter.y = height * 0.75 - 65;
+
+    mainCharacter.isMoving = false; 
     mainCharacter.isSmiling = false;
     mainCharacter.isCrying = true;
-    mainCharacter.x = width / 2;
+    mainCharacter.leftArmState = "default";
+
+    moodValue = 0;
+    blendAmount = 0;
+    floatTextEffects = [];
+    flowerEmojis = []; // 清空小花特效
+
+    passersby = [];
+    lastPasserbyTime = millis() - random(2000, 5000);
+
+      // 重置互动状态
+    tearDrop = false;
+    tearTimer = 0;
+    isWaving = false;
+    isClapping = false;
+    hasIncreasedMood = false;
+  
     gameState = 'normal'; // 回到正常状态
   } 
   // 微笑小人互动
   else if (gameState === 'second_character') {
-    if(happyCharacter)
+    if(happyCharacter){
       //if (happyCharacter && happyCharacter.x > width / 2 - 100 && !secondCharacterDialog) {
         //happyCharacter.isMoving = false; // 停在主角面前
         //secondCharacterDialog = "You are the best";
@@ -401,27 +426,39 @@ function draw() {
         happyCharacter.x += 5; // 持续移动
       }
       // 到达位置后停止并显示对话
-      else if (!secondCharacterDialog) {
+      else if (!secondCharacterDialog && !hasSpoken) {
         happyCharacter.isMoving = false; 
         secondCharacterDialog = "You are the best";
         stateTimer = millis();
-    }
+        hasSpoken = true
+      }
 
     // 停留3秒后离开
       if (secondCharacterDialog && millis() - stateTimer > 3000) {
         happyCharacter.isMoving = true;
         secondCharacterDialog = "";
-        if (happyCharacter.x > width + 100) {
-        happyCharacter = null; 
-        gameState = 'resetting';
-        }
       }
+      // 执行移动（离开时使用更快的速度）
+      if (happyCharacter.isMoving) {
+        happyCharacter.x += 6;
+      }
+      if (happyCharacter.x > width + 100) {
+        happyCharacter = null; 
+        resetCount++; // 增加重置次数
+  
+      // 第二次重置时，重载页面回到初始状态
+        if (resetCount >= 2) {
+          location.reload(); // 强制刷新页面，完全重置所有状态
+        } else {
+          gameState = 'resetting'; // 第一次重置走原有逻辑
+        }
+    }
       happyCharacter.update();
       happyCharacter.display(false);
     // 显示对话
-      if (secondCharacterDialog&& happyCharacter) {
+      if (secondCharacterDialog) {
         push();
-        translate(happyCharacter.x, happyCharacter.y - 40 * SCALE_FACTOR);
+        translate(happyCharacter.x, happyCharacter.y - 30 * SCALE_FACTOR);
         fill(255,240,200); stroke(0); strokeWeight(1);
         rect(-60, -20, 120, 30, 15);
         fill(0); noStroke(); textSize(16); textAlign(CENTER);
@@ -429,7 +466,8 @@ function draw() {
         pop();
       }
     }
-
+  }
+  
    // 心情值满时生成小花emoji
   if (moodValue >= moodMax && frameCount % 5 === 0 && flowerEmojis.length < FLOWER_COUNT) {
     flowerEmojis.push(new FlowerEmoji(mainCharacter.x, mainCharacter.y - 60));
@@ -520,16 +558,18 @@ function draw() {
   mainCharacter.display(true);
   
   // 生成路人：心情值影响间隔（心情越好，间隔越短）
-  const minInterval = 5000;
-  const maxInterval = 12000;
+  if (gameState === 'normal') {
+    const minInterval = 5000;
+    const maxInterval = 12000;
   // 心情值0~100映射到 1~0.3 的系数（心情越好，系数越小，间隔越短）
-  const moodFactor = map(moodValue, 0, 100, 1, 0.3);
-  let randomInterval = randomGaussian((minInterval + maxInterval) / 2, 2000) * moodFactor;
-  randomInterval = constrain(randomInterval, minInterval, maxInterval);
-  if (millis() - lastPasserbyTime > randomInterval ) {
-    let side = random() > 0.5 ? 'left' : 'right';
-    passersby.push(new Passerby(side));
-    lastPasserbyTime = millis();
+    const moodFactor = map(moodValue, 0, 100, 1, 0.3);
+    let randomInterval = randomGaussian((minInterval + maxInterval) / 2, 2000) * moodFactor;
+    randomInterval = constrain(randomInterval, minInterval, maxInterval);
+    if (millis() - lastPasserbyTime > randomInterval || passersby.length === 0) {
+      let side = random() > 0.5 ? 'left' : 'right';
+      passersby.push(new Passerby(side));
+      lastPasserbyTime = millis();
+    }
   }
 
   // 更新和绘制路人
@@ -548,12 +588,6 @@ function draw() {
     tearTimer = 0;
   }
 }
-
-//function drawMuddyGround() {
-  //fill(100, 80, 50);
-  //noStroke();
-  //rect(0, height * 0.75, width, height * 0.25);
-//}
 
 function checkWaving() {
   if (isWaving && millis() - isWavingTimer > WAVE_HOLD_TIME) {
@@ -926,7 +960,8 @@ class Character {
   // 保留您原有的Character类实现
   constructor(x, y, isSitting = false, isCrying = true) {
     this.x = x;
-    this.y = height * 0.85 - 40 * SCALE_FACTOR;
+    this.y = y;
+    //height * 0.85 - 40 * SCALE_FACTOR;
     this.isSitting = isSitting;
     this.eyeY = -5;
     this.mouthY = 10;
