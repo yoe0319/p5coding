@@ -28,6 +28,13 @@ let floatTextEffects = [];
 let rainDrops = [];
 const MAX_RAIN_DROPS = 200; // 最大雨滴数量
 
+// 哭泣小人对话框内容
+const cryDialogs = ["thank u!", "❤️", "💛", "💚", "💙", "💜", "🧡", "💕", "💖", "💘"];
+let showCryDialog = false; // 是否显示对话框
+let cryDialogText = ""; // 对话框内容
+let cryDialogTimer = 0; // 对话框显示计时器
+const CRY_DIALOG_DURATION = 2000; // 对话框显示时长（毫秒）
+
 let isWavingTimer = 0;
 const WAVE_HOLD_TIME = 500;
 
@@ -465,14 +472,14 @@ function draw() {
         background(0)
         // 结束文字
         fill(255);
-        textSize(30);
+        textSize(50);
         textAlign(CENTER, CENTER);
-        text("Thanks for your comfort!", width/2, height/2 - 60);
+        text("Thanks for your comfort!", width/2, height/2 - 100);
         text("Now she is happy again, and she has learnt how to", width/2, height/2 - 25);
-        text("comfort others from you!", width/2, height/2 + 10);
+        text("comfort others from you!", width/2, height/2 + 50);
         // 初始化按钮
         replayButton = createButton('REPLAY');
-        replayButton.position(width/2-80, height/2 + 30);
+        replayButton.position(width/2-80, height/2 + 100);
         replayButton.mousePressed(resetGame);
         replayButton.style('font-size', '24px');
         replayButton.style('padding', '20px 40px');
@@ -492,9 +499,9 @@ function draw() {
         push();
         translate(happyCharacter.x, happyCharacter.y - 30 * SCALE_FACTOR);
         fill(255,240,200); stroke(0); strokeWeight(1);
-        rect(-60, -20, 120, 30, 15);
+        rect(-110,-10, 160, 45, 15);
         fill(0); noStroke(); textSize(16); textAlign(CENTER);
-        text(secondCharacterDialog, 0, 0);
+        text(secondCharacterDialog, -30, 0);
         pop();
       }
     }
@@ -579,6 +586,7 @@ function draw() {
       horizontalFrequency: 0.03 + random(0.02) // 随机频率
     });
     triggerPasserbyInteraction("😊");
+    triggerCryDialog();
   }
 
   if (!isWaving && !isClapping) {
@@ -588,6 +596,37 @@ function draw() {
   // 更新和绘制角色
   mainCharacter.update(); 
   mainCharacter.display(true);
+
+  // 绘制哭泣小人对话框
+if (showCryDialog && gameState === 'normal') {
+  // 检查是否超时
+  if (millis() - cryDialogTimer > CRY_DIALOG_DURATION) {
+    showCryDialog = false;
+  }
+  
+  push();
+  // 对话框位置（小人上方）
+  let dialogX = mainCharacter.x;
+  let dialogY = mainCharacter.y - 130;
+  
+  // 计算对话框宽度
+  let dialogWidth = textWidth(cryDialogText) + 80;
+  let dialogHeight = 60;
+  
+  // 绘制对话框背景
+  fill(255, 240, 200);
+  stroke(0);
+  strokeWeight(1);
+  rect(dialogX - dialogWidth/2, dialogY, dialogWidth, dialogHeight, 10);
+  
+  // 绘制对话框文字
+  fill(0);
+  noStroke();
+  textSize(30);
+  textAlign(CENTER, CENTER);
+  text(cryDialogText, dialogX, dialogY + dialogHeight/2);
+  pop();
+}
   
   // 生成路人：心情值影响间隔（心情越好，间隔越短）
   if (gameState === 'normal') {
@@ -904,6 +943,7 @@ function mousePressed() {
         alpha: 255, 
         value: "+2"
       });
+      triggerCryDialog();
     } else {
       showTemporaryMessage("She feels good now！", 1000);
     }
@@ -995,6 +1035,14 @@ function displayTemporaryMessage() {
   textSize(16);
   textAlign(CENTER, CENTER);
   text(tempMessage, width/2, 25);
+}
+
+//哭泣小人回应
+function triggerCryDialog() {
+  // 随机选择对话框内容
+  cryDialogText = cryDialogs[floor(random(cryDialogs.length))];
+  showCryDialog = true;
+  cryDialogTimer = millis(); // 重置计时器
 }
 
 // ---------------------- 角色和路人代码（保持不变） ----------------------
