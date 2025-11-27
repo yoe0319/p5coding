@@ -24,6 +24,10 @@ const MARKER_DURATION = 1500;
 
 let floatTextEffects = [];
 
+//下雨
+let rainDrops = [];
+const MAX_RAIN_DROPS = 200; // 最大雨滴数量
+
 let isWavingTimer = 0;
 const WAVE_HOLD_TIME = 500;
 
@@ -175,6 +179,36 @@ class FlowerEmoji {
   }
 }
 
+//雨滴
+class RainDrop {
+  constructor() {
+    this.x = random(width);
+    this.y = random(-height, 0);
+    this.speed = random(5, 15);
+    this.length = random(10, 20);
+    this.opacity = random(150, 255);
+    this.width = random(2, 3);
+    this.wind = random(-0.5, 0.5); // 添加轻微偏移
+  }
+
+  update() {
+    this.y += this.speed;
+    this.x += this.wind; // 左右偏移
+    if (this.y > height) {
+      this.y = random(-height, 0);
+      this.x = random(width);
+    }
+  }
+
+  display() {
+    push();
+    stroke(220, 240, 255, this.opacity);
+    strokeWeight(this.width);
+    line(this.x, this.y, this.x, this.y + this.length);
+    pop();
+  }
+}
+
 function setup() {
   createCanvas(windowWidth, windowHeight); // 用图片尺寸做画布
   //console.log("图片尺寸：", bgImg.width, bgImg.height); 
@@ -182,6 +216,11 @@ function setup() {
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
     showTemporaryMessage("⚠️ 麦克风需要HTTPS或localhost环境", 8000);
     console.warn("麦克风API仅在安全上下文中可用(HTTPS或localhost)");
+  }
+ 
+  //初始化雨滴
+  for (let i = 0; i < MAX_RAIN_DROPS; i++) {
+  rainDrops.push(new RainDrop());
   }
   
   mainCharacter = new Character(width / 2, height * 0.75 - 65, true);
@@ -332,10 +371,8 @@ function handleScoreMoodIncrease(score) {
 
 function draw() {
   const targetBlend = map(moodValue, 0, moodMax, 0, 1);
-  // 2. 平滑过渡混合比例（避免突变）
   blendAmount = lerp(blendAmount, targetBlend, BLEND_SMOOTH);
 
-  // 3. 绘制混合后的背景
   push();
   // 先画黑白图
   image(bgImg, 0, 0, windowWidth, windowHeight);
@@ -347,8 +384,21 @@ function draw() {
   blendMode(OVERLAY);
   fill(0, 100, 200, 120);
   rect(50, 50, 300, 300);
-  // 重置混合模式
   blendMode(BLEND);
+
+  if (moodValue < 100) {
+    fill(200, 220, 230, 30); // 淡淡的雨雾效果
+    noStroke();
+    rect(0, 0, width, height);
+  // 根据心情值计算雨滴显示比例（心情越好，显示越少）
+  const rainRatio = map(moodValue, 0, 100, 1, 0);
+  const displayCount = floor(MAX_RAIN_DROPS * rainRatio);
+  
+    for (let i = 0; i < displayCount; i++) {
+      rainDrops[i].update();
+      rainDrops[i].display();
+    }
+  }
 
   // ========== 新增状态判断 ==========
   if (gameState === 'normal') {
@@ -419,7 +469,7 @@ function draw() {
         textAlign(CENTER, CENTER);
         text("Thanks for your comfort!", width/2, height/2 - 60);
         text("Now she is happy again, and she has learnt how to", width/2, height/2 - 25);
-        text("comfort others from you!", width/2, height/2 + 5);
+        text("comfort others from you!", width/2, height/2 + 10);
         // 初始化按钮
         replayButton = createButton('REPLAY');
         replayButton.position(width/2-80, height/2 + 30);
@@ -672,6 +722,10 @@ function detectClap() {
 }
 
 function resetGame() {
+  rainDrops = [];
+  for (let i = 0; i < MAX_RAIN_DROPS; i++) {
+    rainDrops.push(new RainDrop());
+  }
   showEndScreen = false;
   if (replayButton) {
     replayButton.remove();
