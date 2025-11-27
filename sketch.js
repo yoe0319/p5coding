@@ -90,7 +90,11 @@ let happyCharacter = null;
 let secondCharacterDialog = "";
 const MOVE_SPEED = 6;
 let hasSpoken = false; // 添加对话标记
-let resetCount = 0; // 重置次数计数
+
+//replay
+//let showEndScreen = false;
+let replayButton = null;
+
 
 // 新增：聊天记录管理
 let chatHistory = []; // 存储聊天记录，每个元素是 {sender: 'user/ai', content: '消息内容'}
@@ -326,7 +330,6 @@ function handleScoreMoodIncrease(score) {
   }
 }
 
-
 function draw() {
   const targetBlend = map(moodValue, 0, moodMax, 0, 1);
   // 2. 平滑过渡混合比例（避免突变）
@@ -382,46 +385,10 @@ function draw() {
     displayMicStatus();
     displayTemporaryMessage();
   } 
-  // 添加 resetting 状态：
-  else if (gameState === 'resetting') {
-  // 重置所有状态回到初始
-    happyCharacter = null;
-    secondCharacterDialog = "";
-    hasSpoken = false;
 
-    mainCharacter.x = width / 2;
-    mainCharacter.y = height * 0.75 - 65;
-
-    mainCharacter.isMoving = false; 
-    mainCharacter.isSmiling = false;
-    mainCharacter.isCrying = true;
-    mainCharacter.leftArmState = "default";
-
-    moodValue = 0;
-    blendAmount = 0;
-    floatTextEffects = [];
-    flowerEmojis = []; // 清空小花特效
-
-    passersby = [];
-    lastPasserbyTime = millis() - random(2000, 5000);
-
-      // 重置互动状态
-    tearDrop = false;
-    tearTimer = 0;
-    isWaving = false;
-    isClapping = false;
-    hasIncreasedMood = false;
-  
-    gameState = 'normal'; // 回到正常状态
-  } 
   // 微笑小人互动
   else if (gameState === 'second_character') {
     if(happyCharacter){
-      //if (happyCharacter && happyCharacter.x > width / 2 - 100 && !secondCharacterDialog) {
-        //happyCharacter.isMoving = false; // 停在主角面前
-        //secondCharacterDialog = "You are the best";
-        //stateTimer = millis();
-      //}
       if (happyCharacter.x < width / 2 - 100 && !secondCharacterDialog) {
         happyCharacter.x += 5; // 持续移动
       }
@@ -438,21 +405,36 @@ function draw() {
         happyCharacter.isMoving = true;
         secondCharacterDialog = "";
       }
-      // 执行移动（离开时使用更快的速度）
+      // 执行移动
       if (happyCharacter.isMoving) {
         happyCharacter.x += 6;
       }
       if (happyCharacter.x > width + 100) {
         happyCharacter = null; 
-        resetCount++; // 增加重置次数
-  
-      // 第二次重置时，重载页面回到初始状态
-        if (resetCount >= 2) {
-          location.reload(); // 强制刷新页面，完全重置所有状态
-        } else {
-          gameState = 'resetting'; // 第一次重置走原有逻辑
-        }
-    }
+        //showEndScreen = true;
+        background(0)
+        // 结束文字
+        fill(255);
+        textSize(30);
+        textAlign(CENTER, CENTER);
+        text("Thanks for your comfort!", width/2, height/2 - 60);
+        text("Now she is happy again, and she has learnt how to", width/2, height/2 - 25);
+        text("comfort others from you!", width/2, height/2 + 5);
+        // 初始化按钮
+        replayButton = createButton('REPLAY');
+        replayButton.position(width/2-80, height/2 + 30);
+        replayButton.mousePressed(resetGame);
+        replayButton.style('font-size', '24px');
+        replayButton.style('padding', '20px 40px');
+        replayButton.style('width', '200px');             // 设置固定宽度
+        replayButton.style('height', '80px');             // 设置固定高度
+        replayButton.style('background-color', '#4CAF50');
+        replayButton.style('color', 'white');
+        replayButton.style('border', 'none');
+        replayButton.style('border-radius', '10px');
+        replayButton.style('cursor', 'pointer');
+        replayButton.style('box-shadow', '0 6px 12px rgba(0,0,0,0.3)'); // 添加阴影
+      }
       happyCharacter.update();
       happyCharacter.display(false);
     // 显示对话
@@ -687,6 +669,15 @@ function detectClap() {
       isClapping = false;
     }
   }
+}
+
+function resetGame() {
+  showEndScreen = false;
+  if (replayButton) {
+    replayButton.remove();
+    replayButton = null;
+  }
+  location.reload();
 }
 
 function completeCalibration() {
